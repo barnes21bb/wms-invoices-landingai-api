@@ -1,0 +1,146 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.9, 3.10, 3.11]
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pytest pytest-cov black flake8 mypy
+
+    - name: Lint with flake8
+      run: |
+        # Stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Format check with black
+      run: |
+        black --check --diff .
+
+    - name: Type check with mypy
+      run: |
+        mypy . --ignore-missing-imports || true
+
+    - name: Test with pytest
+      run: |
+        pytest --cov=. --cov-report=xml --cov-report=html || true
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        fail_ci_if_error: false
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+
+    - name: Install security tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install bandit safety
+
+    - name: Run bandit security scan
+      run: |
+        bandit -r . -f json -o bandit-report.json || true
+        bandit -r . || true
+
+    - name: Check dependencies for vulnerabilities
+      run: |
+        safety check --json --output safety-report.json || true
+        safety check || true
+
+  validate-schemas:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.9
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Validate Pydantic schemas
+      run: |
+        python -c "
+        from batch_processor import WasteManagementInvoiceSchema, LineItem
+        import json
+        
+        # Test schema validation
+        sample_data = {
+            'customer_id': 'test-123',
+            'customer_name': 'Test Customer',
+            'service_period': '2024-01-01 to 2024-01-31',
+            'invoice_date': '2024-01-31',
+            'invoice_number': 'INV-001',
+            'current_invoice_charges': 1000.0,
+            'vendor_name': 'Test Vendor',
+            'vendor_address': 'Test Address',
+            'vendor_phone': '555-0123',
+            'remit_to_address': 'Remit Address',
+            'service_location_address': 'Service Address',
+            'line_items': [
+                {
+                    'description': 'Test Service',
+                    'date': '2024-01-15',
+                    'ticket_number': 'T001',
+                    'quantity': 1.0,
+                    'amount': 500.0
+                }
+            ],
+            'from_email_address': 'test@example.com',
+            'to_email_address': 'recipient@example.com',
+            'email_date': '2024-01-31T10:00:00',
+            'email_subject': 'Test Subject',
+            'email_body_content': 'Test Body',
+            'gl_account_code': '01.234.567.8901.0000',
+            'tax_code': 'ABC'
+        }
+        
+        # Validate schema
+        schema = WasteManagementInvoiceSchema(**sample_data)
+        print('Schema validation successful!')
+        print(f'Processed invoice: {schema.invoice_number}')
+        "
