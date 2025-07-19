@@ -1,0 +1,638 @@
+{
+  "metadata": {
+    "tax_code": {
+      "value": "ACV",
+      "chunk_references": [
+        "287b99e1-089c-4424-8060-4128af29fae5"
+      ]
+    },
+    "email_date": {
+      "value": "2025-01-08T10:29:00",
+      "chunk_references": [
+        "03cf5c57-a673-496f-981c-1798e1f205a5"
+      ]
+    },
+    "line_items": [
+      {
+        "date": {
+          "value": "2024-12-16",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "amount": {
+          "value": 480.26,
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "quantity": {
+          "value": 1,
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "description": {
+          "value": "40 YD COMPACTOR",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "ticket_number": {
+          "value": "664193",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        }
+      },
+      {
+        "date": {
+          "value": "2024-12-16",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "amount": {
+          "value": 248.34,
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "quantity": {
+          "value": 2.36,
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "description": {
+          "value": "DISPOSAL PER TON",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "ticket_number": {
+          "value": "664193",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        }
+      },
+      {
+        "date": {
+          "value": "2024-12-16",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "amount": {
+          "value": 67.34,
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "quantity": {
+          "value": 0.64,
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "description": {
+          "value": "MINIMUM TONNAGE CHARGE",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "ticket_number": {
+          "value": "664193",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        }
+      },
+      {
+        "date": {
+          "value": "2024-12-19",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "amount": {
+          "value": 480.26,
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "quantity": {
+          "value": 1,
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "description": {
+          "value": "40 YD COMPACTOR",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "ticket_number": {
+          "value": "664210",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        }
+      },
+      {
+        "date": {
+          "value": "2024-12-19",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "amount": {
+          "value": 419.86,
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "quantity": {
+          "value": 3.99,
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "description": {
+          "value": "DISPOSAL PER TON",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        },
+        "ticket_number": {
+          "value": "664210",
+          "chunk_references": [
+            "e656ee0d-be4e-40ec-a664-4c7d4a4c512c"
+          ]
+        }
+      },
+      {
+        "date": {
+          "value": "2024-12-23",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "amount": {
+          "value": 480.26,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "quantity": {
+          "value": 1,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "description": {
+          "value": "40 YD COMPACTOR",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "ticket_number": {
+          "value": "663066",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        }
+      },
+      {
+        "date": {
+          "value": "",
+          "chunk_references": []
+        },
+        "amount": {
+          "value": 428.28,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "quantity": {
+          "value": 4.07,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "description": {
+          "value": "DISPOSAL PER TON",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "ticket_number": {
+          "value": "",
+          "chunk_references": []
+        }
+      },
+      {
+        "date": {
+          "value": "2024-12-27",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "amount": {
+          "value": 480.26,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "quantity": {
+          "value": 1,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "description": {
+          "value": "40 YD COMPACTOR",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "ticket_number": {
+          "value": "663086",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        }
+      },
+      {
+        "date": {
+          "value": "",
+          "chunk_references": []
+        },
+        "amount": {
+          "value": 489.31,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "quantity": {
+          "value": 4.65,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "description": {
+          "value": "DISPOSAL PER TON",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "ticket_number": {
+          "value": "",
+          "chunk_references": []
+        }
+      },
+      {
+        "date": {
+          "value": "2024-12-30",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "amount": {
+          "value": 480.26,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "quantity": {
+          "value": 1,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "description": {
+          "value": "40 YD COMPACTOR",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "ticket_number": {
+          "value": "665366",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        }
+      },
+      {
+        "date": {
+          "value": "",
+          "chunk_references": []
+        },
+        "amount": {
+          "value": 451.43,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "quantity": {
+          "value": 4.29,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "description": {
+          "value": "DISPOSAL PER TON",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "ticket_number": {
+          "value": "",
+          "chunk_references": []
+        }
+      },
+      {
+        "date": {
+          "value": "2024-12-16",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "amount": {
+          "value": 832.6,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "quantity": {
+          "value": 1,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "description": {
+          "value": "40YD COMPACTOR LEASE WITH SVC",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "ticket_number": {
+          "value": "",
+          "chunk_references": []
+        }
+      },
+      {
+        "date": {
+          "value": "",
+          "chunk_references": []
+        },
+        "amount": {
+          "value": 8.5,
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "quantity": {
+          "value": 0,
+          "chunk_references": []
+        },
+        "description": {
+          "value": "ADMINISTRATIVE CHARGE",
+          "chunk_references": [
+            "f79a6109-8504-4831-b9eb-26a80f8425f3"
+          ]
+        },
+        "ticket_number": {
+          "value": "",
+          "chunk_references": []
+        }
+      }
+    ],
+    "customer_id": {
+      "value": "8-08612-13004",
+      "chunk_references": [
+        "c70acc80-1339-470c-b9cd-86ac5c1a655c",
+        "c999d1d0-3243-495b-b4b7-b20ad7dd38e1",
+        "432ef5b8-de2f-4595-816a-c7824a3ed850",
+        "e656ee0d-be4e-40ec-a664-4c7d4a4c512c",
+        "f79a6109-8504-4831-b9eb-26a80f8425f3"
+      ]
+    },
+    "vendor_name": {
+      "value": "WASTE MANAGEMENT OF ARKANSAS, INC.",
+      "chunk_references": [
+        "08c5aa75-77b3-431f-8060-be2061df3d04"
+      ]
+    },
+    "invoice_date": {
+      "value": "2025-01-02",
+      "chunk_references": [
+        "c70acc80-1339-470c-b9cd-86ac5c1a655c",
+        "c999d1d0-3243-495b-b4b7-b20ad7dd38e1",
+        "432ef5b8-de2f-4595-816a-c7824a3ed850"
+      ]
+    },
+    "vendor_phone": {
+      "value": "(800) 607-9509; (479) 474-2806",
+      "chunk_references": [
+        "08c5aa75-77b3-431f-8060-be2061df3d04"
+      ]
+    },
+    "customer_name": {
+      "value": "SIMMONS PREPARED FOODS",
+      "chunk_references": [
+        "c70acc80-1339-470c-b9cd-86ac5c1a655c",
+        "432ef5b8-de2f-4595-816a-c7824a3ed850"
+      ]
+    },
+    "email_subject": {
+      "value": "Re: Waste Management Invoices 01/02/25 FOR APPROVAL",
+      "chunk_references": [
+        "6fba2ee6-4d6b-44fc-b42d-0ac18ff06a54"
+      ]
+    },
+    "invoice_number": {
+      "value": "5260154-0592-5",
+      "chunk_references": [
+        "c70acc80-1339-470c-b9cd-86ac5c1a655c",
+        "c999d1d0-3243-495b-b4b7-b20ad7dd38e1",
+        "432ef5b8-de2f-4595-816a-c7824a3ed850"
+      ]
+    },
+    "service_period": {
+      "value": "2024-12-16 to 2024-12-31",
+      "chunk_references": [
+        "c70acc80-1339-470c-b9cd-86ac5c1a655c",
+        "432ef5b8-de2f-4595-816a-c7824a3ed850"
+      ]
+    },
+    "vendor_address": {
+      "value": "PO BOX 3020, MONROE, WI 53566-8320",
+      "chunk_references": [
+        "08c5aa75-77b3-431f-8060-be2061df3d04"
+      ]
+    },
+    "gl_account_code": {
+      "value": "02.385.309.6419.0000",
+      "chunk_references": [
+        "855c6a25-6176-441d-a730-4f7af9f7e76d"
+      ]
+    },
+    "remit_to_address": {
+      "value": "WM CORPORATE SERVICES, INC. AS PAYMENT AGENT PO BOX 660345 DALLAS, TX 75266-0345",
+      "chunk_references": [
+        "ce211d12-9a34-42f5-9213-087a7c0728dc",
+        "8b68c93d-72f8-4af7-b350-4d261cf3c107"
+      ]
+    },
+    "to_email_address": {
+      "value": "vbcap@simfoods.com",
+      "chunk_references": [
+        "03cf5c57-a673-496f-981c-1798e1f205a5"
+      ]
+    },
+    "email_body_content": {
+      "value": "Yes, approved.",
+      "chunk_references": [
+        "9796d328-f373-422b-9ba6-bef804b9af10"
+      ]
+    },
+    "from_email_address": {
+      "value": "levent.yildiz@simfoods.com",
+      "chunk_references": [
+        "03cf5c57-a673-496f-981c-1798e1f205a5"
+      ]
+    },
+    "current_invoice_charges": {
+      "value": 5346.96,
+      "chunk_references": [
+        "e742fe72-77b3-4409-8653-24100bdcc10c",
+        "c999d1d0-3243-495b-b4b7-b20ad7dd38e1",
+        "f79a6109-8504-4831-b9eb-26a80f8425f3"
+      ]
+    },
+    "service_location_address": {
+      "value": "Simmons Prepared Foods, 2101 Twin Circle Dr, Van Buren AR 72956-6027",
+      "chunk_references": [
+        "e31cdd9c-31fb-4aec-9a79-e2d7e6414f5d",
+        "e656ee0d-be4e-40ec-a664-4c7d4a4c512c",
+        "f79a6109-8504-4831-b9eb-26a80f8425f3"
+      ]
+    }
+  },
+  "extraction": {
+    "customer_id": "8-08612-13004",
+    "customer_name": "SIMMONS PREPARED FOODS",
+    "service_period": "2024-12-16 to 2024-12-31",
+    "invoice_date": "2025-01-02",
+    "invoice_number": "5260154-0592-5",
+    "current_invoice_charges": 5346.96,
+    "vendor_name": "WASTE MANAGEMENT OF ARKANSAS, INC.",
+    "vendor_address": "PO BOX 3020, MONROE, WI 53566-8320",
+    "vendor_phone": "(800) 607-9509; (479) 474-2806",
+    "remit_to_address": "WM CORPORATE SERVICES, INC. AS PAYMENT AGENT PO BOX 660345 DALLAS, TX 75266-0345",
+    "service_location_address": "Simmons Prepared Foods, 2101 Twin Circle Dr, Van Buren AR 72956-6027",
+    "line_items": [
+      {
+        "description": "40 YD COMPACTOR",
+        "date": "2024-12-16",
+        "ticket_number": "664193",
+        "quantity": 1,
+        "amount": 480.26
+      },
+      {
+        "description": "DISPOSAL PER TON",
+        "date": "2024-12-16",
+        "ticket_number": "664193",
+        "quantity": 2.36,
+        "amount": 248.34
+      },
+      {
+        "description": "MINIMUM TONNAGE CHARGE",
+        "date": "2024-12-16",
+        "ticket_number": "664193",
+        "quantity": 0.64,
+        "amount": 67.34
+      },
+      {
+        "description": "40 YD COMPACTOR",
+        "date": "2024-12-19",
+        "ticket_number": "664210",
+        "quantity": 1,
+        "amount": 480.26
+      },
+      {
+        "description": "DISPOSAL PER TON",
+        "date": "2024-12-19",
+        "ticket_number": "664210",
+        "quantity": 3.99,
+        "amount": 419.86
+      },
+      {
+        "description": "40 YD COMPACTOR",
+        "date": "2024-12-23",
+        "ticket_number": "663066",
+        "quantity": 1,
+        "amount": 480.26
+      },
+      {
+        "description": "DISPOSAL PER TON",
+        "date": "",
+        "ticket_number": "",
+        "quantity": 4.07,
+        "amount": 428.28
+      },
+      {
+        "description": "40 YD COMPACTOR",
+        "date": "2024-12-27",
+        "ticket_number": "663086",
+        "quantity": 1,
+        "amount": 480.26
+      },
+      {
+        "description": "DISPOSAL PER TON",
+        "date": "",
+        "ticket_number": "",
+        "quantity": 4.65,
+        "amount": 489.31
+      },
+      {
+        "description": "40 YD COMPACTOR",
+        "date": "2024-12-30",
+        "ticket_number": "665366",
+        "quantity": 1,
+        "amount": 480.26
+      },
+      {
+        "description": "DISPOSAL PER TON",
+        "date": "",
+        "ticket_number": "",
+        "quantity": 4.29,
+        "amount": 451.43
+      },
+      {
+        "description": "40YD COMPACTOR LEASE WITH SVC",
+        "date": "2024-12-16",
+        "ticket_number": "",
+        "quantity": 1,
+        "amount": 832.6
+      },
+      {
+        "description": "ADMINISTRATIVE CHARGE",
+        "date": "",
+        "ticket_number": "",
+        "quantity": 0,
+        "amount": 8.5
+      }
+    ],
+    "from_email_address": "levent.yildiz@simfoods.com",
+    "to_email_address": "vbcap@simfoods.com",
+    "email_date": "2025-01-08T10:29:00",
+    "email_subject": "Re: Waste Management Invoices 01/02/25 FOR APPROVAL",
+    "email_body_content": "Yes, approved.",
+    "gl_account_code": "02.385.309.6419.0000",
+    "tax_code": "ACV"
+  }
+}
