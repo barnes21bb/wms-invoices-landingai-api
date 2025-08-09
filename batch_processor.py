@@ -8,12 +8,22 @@ import json
 import os
 from pathlib import Path
 from typing import List, Optional, Dict, Any
+from enum import Enum
 from dotenv import load_dotenv
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
 from agentic_doc.parse import parse, ParseConfig
 
 # Load environment variables
 load_dotenv()
+
+
+class LineItemCategory(str, Enum):
+    """Categories for waste management line items"""
+
+    STANDARD = "standard"  # Core waste services (rolloffs, compactors, disposal)
+    MINIMUM_TONNAGE = "minimum_tonnage"  # Minimum tonnage charges
+    OVERAGE = "overage"  # Excess or overage charges
+    FEES = "fees"  # Admin fees, surcharges, taxes, and other fees
 
 
 class LineItem(BaseModel):
@@ -42,6 +52,95 @@ class LineItem(BaseModel):
         description="The monetary amount for the line item.",
         title="Line Item Amount",
     )
+
+    @computed_field
+    @property
+    def estimated_tons(self) -> float:
+        """Estimate tons of waste for this line item"""
+        return self._calculate_tonnage()
+
+    @computed_field
+    @property
+    def category(self) -> LineItemCategory:
+        """Automatically categorize line item based on description patterns"""
+        return self._categorize_line_item()
+
+    def _calculate_tonnage(self) -> float:
+        """Calculate estimated tonnage based on line item description and quantity"""
+        desc = self.description.upper().strip()
+        
+        # Check if this is a "disposal per ton" line item
+        if "DISPOSAL" in desc and ("TON" in desc or "TONNAGE" in desc):
+            # Check if it's a minimum service charge - these don't represent actual waste
+            if any(term in desc for term in ["MINIMUM", "MIN", "MINIMUM SERVICE", "MINIMUM CHARGE"]):
+                return 0.0
+            else:
+                # For disposal per ton items, quantity equals tons
+                return self.quantity
+        
+        # For other line items, we don't estimate tonnage yet
+        return 0.0
+
+    def _categorize_line_item(self) -> LineItemCategory:
+        """Categorize line item based on description patterns"""
+        desc = self.description.upper().strip()
+
+        # Minimum tonnage charges
+        if any(term in desc for term in ["MINIMUM TONNAGE", "MINIMUM CHARGE"]):
+            return LineItemCategory.MINIMUM_TONNAGE
+
+        # Overage/excess charges
+        if any(
+            term in desc
+            for term in ["OVERAGE", "EXCESS", "ADDITIONAL TONNAGE", "EXTRA TONNAGE"]
+        ):
+            return LineItemCategory.OVERAGE
+
+        # Fees - admin, surcharges, taxes, and other fees
+        if any(
+            term in desc
+            for term in [
+                "ADMINISTRATIVE",
+                "ADMIN",
+                "PROCESSING FEE",
+                "SURCHARGE",
+                "FUEL",
+                "ENERGY",
+                "TAX",
+                "SALES TAX",
+                "VAT",
+                "ENVIRONMENTAL FEE",
+                "SPECIAL HANDLING",
+                "OVERTIME",
+                "HOLIDAY",
+                "DELIVERY FEE",
+                "LINER",
+                "FEE",
+                "CHARGE",
+            ]
+        ):
+            return LineItemCategory.FEES
+
+        # Standard services - core waste management services
+        if any(
+            term in desc
+            for term in [
+                "ROLLOFF",
+                "COMPACTOR",
+                "DISPOSAL",
+                "COLLECTION",
+                "SERVICE",
+                "CONTAINER",
+                "DUMPSTER",
+                "PICKUP",
+                "HAUL",
+                "LEASE",
+            ]
+        ):
+            return LineItemCategory.STANDARD
+
+        # Default to standard for unmatched items
+        return LineItemCategory.STANDARD
 
 
 class WasteManagementInvoiceSchema(BaseModel):
@@ -220,26 +319,59 @@ class BatchProcessor:
         return output_path
 
     def generate_summary(self, results: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Generate processing summary"""
+        """Generate processing summary with line item categorization"""
         total_files = len(results)
         successful = sum(1 for r in results if r["success"])
         failed = total_files - successful
 
         total_charges = 0
+        total_estimated_tons = 0
         processed_invoices = []
+        category_stats = {
+            "standard": {"count": 0, "total_amount": 0, "total_tons": 0},
+            "minimum_tonnage": {"count": 0, "total_amount": 0, "total_tons": 0},
+            "overage": {"count": 0, "total_amount": 0, "total_tons": 0},
+            "fees": {"count": 0, "total_amount": 0, "total_tons": 0},
+        }
 
         for result in results:
             if result["success"] and result["extraction"]:
                 extraction = result["extraction"]
                 if extraction.get("current_invoice_charges"):
                     total_charges += extraction["current_invoice_charges"]
+
+                # Categorize line items and calculate tonnage
+                line_items = extraction.get("line_items", [])
+                invoice_categories = {
+                    "standard": 0,
+                    "minimum_tonnage": 0,
+                    "overage": 0,
+                    "fees": 0,
+                }
+                invoice_total_tons = 0
+
+                for item_data in line_items:
+                    # Create LineItem instance to get category and tonnage
+                    line_item = LineItem(**item_data)
+                    category = line_item.category.value
+                    estimated_tons = line_item.estimated_tons
+
+                    category_stats[category]["count"] += 1
+                    category_stats[category]["total_amount"] += line_item.amount
+                    category_stats[category]["total_tons"] += estimated_tons
+                    invoice_categories[category] += 1
+                    invoice_total_tons += estimated_tons
+                    total_estimated_tons += estimated_tons
+
                 processed_invoices.append(
                     {
                         "file": Path(result["file_path"]).name,
                         "invoice_number": extraction.get("invoice_number"),
                         "customer_name": extraction.get("customer_name"),
                         "charges": extraction.get("current_invoice_charges"),
-                        "line_items_count": len(extraction.get("line_items", [])),
+                        "line_items_count": len(line_items),
+                        "estimated_tons": invoice_total_tons,
+                        "category_breakdown": invoice_categories,
                     }
                 )
 
@@ -254,18 +386,20 @@ class BatchProcessor:
             },
             "financial_summary": {
                 "total_charges": total_charges,
+                "total_estimated_tons": total_estimated_tons,
                 "processed_invoices": processed_invoices,
             },
+            "line_item_categories": category_stats,
             "failed_files": [r["file_path"] for r in results if not r["success"]],
         }
 
 
 def main():
-    """Example usage"""
+    """Example usage with categorization"""
     processor = BatchProcessor()
 
     # Example: Process files from a directory
-    # file_paths = list(Path("documents").glob("*.pdf"))
+    # file_paths = list(Path("wms-invoice-pdfs").glob("*.pdf"))
 
     # Example: Process specific files
     file_paths = ["path/to/invoice1.pdf", "path/to/invoice2.pdf"]
@@ -291,6 +425,14 @@ def main():
     print(f"- Failed: {summary['processing_summary']['failed']}")
     print(f"- Success rate: {summary['processing_summary']['success_rate']}")
     print(f"- Total charges: ${summary['financial_summary']['total_charges']:,.2f}")
+    print(f"- Total estimated tons: {summary['financial_summary']['total_estimated_tons']:,.2f}")
+
+    # Print category breakdown
+    print(f"\nLine Item Category Breakdown:")
+    for category, stats in summary["line_item_categories"].items():
+        print(
+            f"- {category.replace('_', ' ').title()}: {stats['count']} items, ${stats['total_amount']:,.2f}, {stats['total_tons']:,.2f} tons"
+        )
 
 
 if __name__ == "__main__":

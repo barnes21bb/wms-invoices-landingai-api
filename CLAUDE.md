@@ -1,113 +1,100 @@
-# WMS Invoices LandingAI API - Project Context
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-This is an automated invoice processing system that uses LandingAI's Agentic Document Extraction API to extract structured data from Waste Management invoices and related email correspondence.
+Automated invoice processing system using LandingAI's Agentic Document Extraction API to extract structured data from Waste Management invoices and email correspondence.
 
-## Key Components
+## Essential Commands
 
-### Core Files
-- `batch_processor.py` - Main batch processing engine with Pydantic schemas
-- `app.py` - Streamlit web interface for file upload and processing
-- `main.py` - Basic setup validation script
-- `extract-schema-library.py` - Library approach example (recommended)
-- `extract-schema-api.py` - Direct API approach example
-
-### Configuration
-- `.env` - Contains `VISION_AGENT_API_KEY` for LandingAI API access
-- `requirements.txt` - Python dependencies
-- `dev-requirements.txt` - Development and testing dependencies
-
-### Data Structure
-The system extracts these fields from Waste Management invoices:
-- Customer information (ID, name)
-- Invoice details (number, date, charges)
-- Vendor information (name, address, phone)
-- Line items (description, date, ticket number, quantity, amount)
-- Email correspondence details
-- Accounting codes (GL account code, tax code)
-
-## Architecture Decisions
-
-### Why Library Approach Over Direct API
-We chose the `agentic-doc` library approach because:
-- Type safety with Pydantic models
-- Better error handling
-- Built-in batch processing
-- Easier testing and maintenance
-- IDE support and auto-completion
-
-### Schema Design
-- `WasteManagementInvoiceSchema` - Main invoice schema
-- `LineItem` - Nested schema for individual invoice line items
-- All fields use descriptive titles and detailed descriptions for better AI extraction
-
-## Development Workflow
-
-### Local Development
+### Setup and Environment
 ```bash
-# Activate environment
+# Create and activate virtual environment
+python3.9 -m venv venv
 source venv/bin/activate
 
-# Run web app
+# Install dependencies
+pip install -r requirements.txt
+pip install -r dev-requirements.txt
+```
+
+### Development Commands
+```bash
+# Run web application
 streamlit run app.py
 
 # Run batch processing
 python batch_processor.py
 
-# Run tests
+# Validate setup
+python main.py
+```
+
+### Testing and Quality
+```bash
+# Run all tests
 pytest
+
+# Run tests with coverage
+pytest --cov=. --cov-report=html
+
+# Run single test file
+pytest tests/test_batch_processor.py
 
 # Format code
 black .
+
+# Lint code
+flake8 .
+
+# Type checking
+mypy . --ignore-missing-imports
+
+# Security scanning
+bandit -r .
+safety check
 ```
 
-### Testing
-- Unit tests in `tests/` directory
-- Mock LandingAI API calls for reliable testing
-- Test both successful and failure scenarios
-- Schema validation testing
+## Architecture Overview
 
-## Common Tasks
+### Core Processing Pipeline
+The system follows a three-layer architecture:
+1. **Input Layer**: PDF/email document ingestion via Streamlit UI or batch processing
+2. **Processing Layer**: LandingAI `agentic-doc` library with Pydantic schema validation
+3. **Output Layer**: Structured JSON/Markdown export with metadata and chunk references
 
-### Processing New Invoices
-1. Place PDF files in a directory
-2. Use `BatchProcessor.process_multiple_files()`
-3. Review results and summaries
-4. Export data as needed
+### Key Components
+- `batch_processor.py:BatchProcessor` - Main processing engine with type-safe Pydantic schemas
+- `batch_processor.py:WasteManagementInvoiceSchema` - Primary data model for invoice extraction
+- `batch_processor.py:LineItem` - Nested model for invoice line items
+- `app.py` - Streamlit web interface for interactive processing
 
-### Updating Schemas
-1. Modify Pydantic models in `batch_processor.py`
-2. Update tests in `tests/test_batch_processor.py`
-3. Run validation tests
-4. Update documentation
+### Schema Design Philosophy
+All Pydantic models use descriptive Field titles and descriptions to guide LandingAI's extraction. The `WasteManagementInvoiceSchema` captures:
+- Customer/vendor information
+- Invoice metadata (number, date, charges)
+- Line items with quantities and amounts
+- Email correspondence details
+- Accounting codes (GL account, tax codes)
 
-### Troubleshooting
-- Check API key is set correctly
-- Verify file paths are accessible
-- Review LandingAI API documentation for schema requirements
-- Check logs for processing errors
+### Processing Patterns
+- **Library Approach**: Uses `agentic-doc.parse()` with `ParseConfig` for type safety and error handling
+- **Batch Processing**: `BatchProcessor.process_multiple_files()` handles multiple documents with progress tracking
+- **Result Structure**: Returns both clean extracted data and metadata with chunk references for verification
 
-## API Limitations & Considerations
-- LandingAI API has rate limits
-- Large files may take several minutes to process
-- API key must be kept secure
-- Processing costs apply per document
+## Configuration Requirements
+- `.env` file with `VISION_AGENT_API_KEY` from LandingAI Settings
+- Python 3.9+ (tested on 3.9, 3.10, 3.11)
+- Virtual environment recommended
 
-## Deployment Notes
-- GitHub Actions handle CI/CD automatically
-- Secrets are configured in GitHub repository
-- Docker support available for containerized deployment
-- Streamlit app can be deployed to various platforms
+## Testing Strategy
+- Unit tests mock LandingAI API calls for reliability
+- Schema validation tests ensure Pydantic models work correctly
+- CI pipeline includes security scanning with bandit and safety
+- Coverage reporting with pytest-cov
 
-## File Organization
-- `wms-invoice-pdfs/` - Sample invoice files for testing
-- `results/` - Output directory for batch processing results
-- `.github/workflows/` - CI/CD automation
-- `tests/` - Test suite
-
-## Future Enhancements
-- Database integration for storing results
-- Excel/CSV export functionality
-- Email notification system
-- Web dashboard for analytics
-- Automated file monitoring and processing
+## Important Implementation Notes
+- Always use the library approach (`agentic-doc`) over direct API calls for better error handling
+- Results include both extracted data and metadata with chunk references for verification
+- The system handles rate limiting and large file processing automatically
+- Sample invoices in `wms-invoice-pdfs/` directory for testing
