@@ -10,8 +10,13 @@ from pathlib import Path
 from dotenv import load_dotenv
 from agentic_doc.parse import parse
 from batch_processor import BatchProcessor, WasteManagementInvoiceSchema, LineItem
+from evaluation_models import (
+    EvaluationDataset, EvaluationDocument, FieldImportance, 
+    FIELD_IMPORTANCE_MAPPING, GroundTruthValue
+)
 import PyPDF2
 from PIL import Image
+import uuid
 
 # Load environment variables
 load_dotenv()
@@ -21,9 +26,13 @@ RESULTS_DIR = Path("results")
 PROCESSED_DIR = RESULTS_DIR / "processed_invoices"
 UPLOADED_DIR = RESULTS_DIR / "uploaded_files"
 
+# Evaluation dataset directory
+EVALUATION_DIR = RESULTS_DIR / "evaluation_datasets"
+
 # Ensure directories exist
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
 UPLOADED_DIR.mkdir(parents=True, exist_ok=True)
+EVALUATION_DIR.mkdir(parents=True, exist_ok=True)
 
 # Cost configuration
 COST_PER_PAGE = 0.03  # $0.03 per page
@@ -188,13 +197,22 @@ def main():
     # Sidebar for navigation
     st.sidebar.title("Navigation")
     page = st.sidebar.radio(
-        "Choose a page:", ["Process New Invoice", "Invoice Summary"]
+        "Choose a page:", [
+            "Process New Invoice", 
+            "Invoice Summary", 
+            "Ground Truth Annotation",
+            "Evaluation Dashboard"
+        ]
     )
 
     if page == "Process New Invoice":
         process_invoice_page()
-    else:
+    elif page == "Invoice Summary":
         invoice_summary_page()
+    elif page == "Ground Truth Annotation":
+        ground_truth_annotation_page()
+    else:  # Evaluation Dashboard
+        evaluation_dashboard_page()
 
 
 def process_invoice_page():
@@ -1249,6 +1267,425 @@ def invoice_summary_page():
                     break
     else:
         st.info("No invoices match the current filters.")
+
+
+def load_or_create_evaluation_dataset(dataset_name: str = "main") -> EvaluationDataset:
+    """Load existing evaluation dataset or create a new one"""
+    dataset_file = EVALUATION_DIR / f"{dataset_name}.json"
+    
+    if dataset_file.exists():
+        try:
+            return EvaluationDataset.load_from_file(str(dataset_file))
+        except Exception as e:
+            st.error(f"Error loading dataset: {e}")
+    
+    # Create new dataset
+    dataset = EvaluationDataset(
+        dataset_id=str(uuid.uuid4()),
+        name=dataset_name,
+        description=f"Evaluation dataset for OCR accuracy measurement",
+        field_importance_weights=FIELD_IMPORTANCE_MAPPING
+    )
+    return dataset
+
+
+def save_evaluation_dataset(dataset: EvaluationDataset, dataset_name: str = "main"):
+    """Save evaluation dataset to disk"""
+    dataset_file = EVALUATION_DIR / f"{dataset_name}.json"
+    try:
+        dataset.save_to_file(str(dataset_file))
+        return True
+    except Exception as e:
+        st.error(f"Error saving dataset: {e}")
+        return False
+
+
+def ground_truth_annotation_page():
+    """Page for annotating ground truth values for evaluation"""
+    st.header("📝 Ground Truth Annotation")
+    st.markdown("Annotate correct values for key fields to create evaluation datasets")
+    
+    # Load processed results to annotate
+    results = load_all_results()
+    
+    if not results:
+        st.info("No processed invoices available for annotation. Please process some invoices first.")
+        return
+    
+    # Dataset selection/creation
+    col1, col2 = st.columns([3, 1])
+    with col1:
+        dataset_name = st.selectbox(
+            "Select Dataset",
+            options=["main", "test", "validation"] + [f.stem for f in EVALUATION_DIR.glob("*.json")],
+            help="Choose existing dataset or type new name below"
+        )
+        
+        custom_name = st.text_input("Or create new dataset:", placeholder="my_dataset_name")
+        if custom_name:
+            dataset_name = custom_name.replace(" ", "_").lower()
+    
+    with col2:
+        st.markdown("### Quick Stats")
+        dataset = load_or_create_evaluation_dataset(dataset_name)
+        st.metric("Documents", len(dataset.documents))
+        annotated_docs = sum(1 for doc in dataset.documents.values() if doc.ground_truth)
+        st.metric("Annotated", annotated_docs)
+    
+    # Document selection
+    st.markdown("---")
+    st.subheader("Select Document to Annotate")
+    
+    # Create document selection options
+    doc_options = {}
+    for i, result in enumerate(results):
+        if result["data"].get("extraction"):
+            metadata = result["metadata"]
+            extraction = result["data"]["extraction"]
+            filename = metadata.get("filename", f"Document {i+1}")
+            
+            # Check if already in dataset
+            doc_id = metadata.get("file_hash", filename)
+            status = "✅ Annotated" if doc_id in dataset.documents and dataset.documents[doc_id].ground_truth else "📝 Not annotated"
+            
+            display_name = f"{filename} - {extraction.get('invoice_number', 'N/A')} - ${extraction.get('current_invoice_charges', 'N/A')} ({status})"
+            doc_options[display_name] = {
+                "result": result,
+                "doc_id": doc_id,
+                "is_annotated": doc_id in dataset.documents and bool(dataset.documents[doc_id].ground_truth)
+            }
+    
+    if not doc_options:
+        st.warning("No processed invoices with extraction data found.")
+        return
+    
+    selected_doc_name = st.selectbox(
+        "Choose document to annotate:",
+        options=list(doc_options.keys())
+    )
+    
+    if not selected_doc_name:
+        return
+    
+    selected_info = doc_options[selected_doc_name]
+    result = selected_info["result"]
+    doc_id = selected_info["doc_id"]
+    
+    # Display document info
+    st.markdown("---")
+    st.subheader(f"Annotating: {result['metadata'].get('filename', 'Unknown')}")
+    
+    extraction = result["data"]["extraction"]
+    metadata = result["metadata"]
+    
+    # Load or create evaluation document
+    if doc_id in dataset.documents:
+        eval_doc = dataset.documents[doc_id]
+    else:
+        # Create new evaluation document
+        eval_doc = EvaluationDocument(
+            document_id=doc_id,
+            file_path=str(UPLOADED_DIR / metadata.get("filename", "")),
+            file_hash=metadata.get("file_hash", ""),
+            metadata=metadata
+        )
+        
+        # Add the LandingAI extraction as an OCR result
+        eval_doc.add_ocr_result(
+            tool_name="LandingAI",
+            tool_version="agentic-doc",
+            extracted_values=extraction,
+            raw_output=result["data"]
+        )
+    
+    # Annotation interface
+    st.markdown("### Field Annotation")
+    st.markdown("Review the extracted values and mark them as correct or provide the ground truth:")
+    
+    # Key fields to annotate with importance
+    key_fields = [
+        ("invoice_number", "Invoice Number", FieldImportance.CRITICAL),
+        ("current_invoice_charges", "Total Amount", FieldImportance.CRITICAL),
+        ("customer_id", "Customer ID", FieldImportance.HIGH),
+        ("customer_name", "Customer Name", FieldImportance.HIGH),
+        ("invoice_date", "Invoice Date", FieldImportance.HIGH),
+        ("gl_account_code", "GL Account Code", FieldImportance.HIGH),
+        ("tax_code", "Tax Code", FieldImportance.HIGH),
+        ("service_period", "Service Period", FieldImportance.MEDIUM),
+        ("vendor_name", "Vendor Name", FieldImportance.MEDIUM),
+        ("service_location_address", "Service Address", FieldImportance.MEDIUM),
+    ]
+    
+    updated_fields = {}
+    
+    for field_name, display_name, importance in key_fields:
+        with st.container():
+            col1, col2, col3, col4 = st.columns([2, 3, 2, 1])
+            
+            # Display field info
+            with col1:
+                importance_color = {
+                    FieldImportance.CRITICAL: "🔴",
+                    FieldImportance.HIGH: "🟡", 
+                    FieldImportance.MEDIUM: "🟢",
+                    FieldImportance.LOW: "⚪"
+                }
+                st.write(f"{importance_color[importance]} **{display_name}**")
+                st.caption(f"Importance: {importance.value}")
+            
+            # Show extracted value
+            with col2:
+                extracted_value = extraction.get(field_name, "N/A")
+                st.text_area(
+                    "Extracted Value:",
+                    value=str(extracted_value),
+                    height=60,
+                    disabled=True,
+                    key=f"extracted_{field_name}"
+                )
+            
+            # Ground truth input
+            with col3:
+                # Check if we have existing ground truth
+                existing_gt = eval_doc.ground_truth.get(field_name)
+                default_value = str(existing_gt.value) if existing_gt else str(extracted_value) if extracted_value != "N/A" else ""
+                
+                ground_truth_value = st.text_area(
+                    "Ground Truth:",
+                    value=default_value,
+                    height=60,
+                    key=f"gt_{field_name}",
+                    help="Enter the correct value as it appears in the document"
+                )
+                
+                if ground_truth_value and ground_truth_value != default_value:
+                    updated_fields[field_name] = {
+                        "value": ground_truth_value,
+                        "importance": importance
+                    }
+            
+            # Confidence and notes
+            with col4:
+                confidence = st.slider(
+                    "Confidence:",
+                    min_value=0.0,
+                    max_value=1.0,
+                    value=existing_gt.confidence if existing_gt else 1.0,
+                    step=0.1,
+                    key=f"conf_{field_name}"
+                )
+                
+                if field_name in updated_fields:
+                    updated_fields[field_name]["confidence"] = confidence
+    
+    # Global annotation options
+    st.markdown("---")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        annotator_name = st.text_input(
+            "Annotator Name:",
+            value=st.session_state.get("annotator_name", ""),
+            help="Your name for tracking who made annotations"
+        )
+        if annotator_name:
+            st.session_state["annotator_name"] = annotator_name
+    
+    with col2:
+        notes = st.text_area(
+            "General Notes:",
+            help="Any notes about this document or annotation",
+            height=100
+        )
+    
+    # Save annotations
+    if st.button("💾 Save Annotations", type="primary"):
+        if not annotator_name:
+            st.error("Please enter your name as annotator")
+            return
+        
+        # Update ground truth values
+        for field_name, field_data in updated_fields.items():
+            eval_doc.add_ground_truth(
+                field_name=field_name,
+                value=field_data["value"],
+                importance=field_data["importance"],
+                confidence=field_data.get("confidence", 1.0),
+                notes=notes,
+                annotated_by=annotator_name
+            )
+        
+        # Add document to dataset
+        dataset.add_document(eval_doc)
+        
+        # Save dataset
+        if save_evaluation_dataset(dataset, dataset_name):
+            st.success(f"✅ Annotations saved to dataset '{dataset_name}'!")
+            st.rerun()
+        else:
+            st.error("Failed to save annotations")
+    
+    # Show current annotations
+    if eval_doc.ground_truth:
+        st.markdown("---")
+        st.subheader("Current Annotations")
+        
+        annotations_df = []
+        for field_name, gt in eval_doc.ground_truth.items():
+            annotations_df.append({
+                "Field": field_name,
+                "Ground Truth": str(gt.value)[:50] + ("..." if len(str(gt.value)) > 50 else ""),
+                "Confidence": f"{gt.confidence:.1f}",
+                "Annotated By": gt.annotated_by,
+                "Date": gt.annotated_at.strftime("%Y-%m-%d %H:%M") if gt.annotated_at else "N/A"
+            })
+        
+        if annotations_df:
+            st.dataframe(pd.DataFrame(annotations_df), use_container_width=True, hide_index=True)
+
+
+def evaluation_dashboard_page():
+    """Page showing evaluation metrics and comparisons"""
+    st.header("📊 Evaluation Dashboard")
+    st.markdown("Compare OCR tool accuracy across different documents and fields")
+    
+    # Dataset selection
+    dataset_files = list(EVALUATION_DIR.glob("*.json"))
+    if not dataset_files:
+        st.info("No evaluation datasets found. Please create ground truth annotations first.")
+        return
+    
+    dataset_options = [f.stem for f in dataset_files]
+    selected_dataset = st.selectbox("Select Evaluation Dataset:", dataset_options)
+    
+    if not selected_dataset:
+        return
+    
+    # Load dataset
+    dataset = load_or_create_evaluation_dataset(selected_dataset)
+    
+    # Calculate metrics
+    with st.spinner("Calculating evaluation metrics..."):
+        dataset.calculate_metrics()
+    
+    if not dataset.documents:
+        st.warning("No documents in the selected dataset.")
+        return
+    
+    if not dataset.metrics:
+        st.warning("No OCR results found for comparison. Please ensure documents have OCR tool results.")
+        return
+    
+    # Overview metrics
+    st.subheader("📈 Overview")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total Documents", len(dataset.documents))
+    with col2:
+        annotated_docs = sum(1 for doc in dataset.documents.values() if doc.ground_truth)
+        st.metric("Annotated", annotated_docs)
+    with col3:
+        total_tools = len(dataset.metrics)
+        st.metric("OCR Tools", total_tools)
+    with col4:
+        avg_accuracy = sum(m.overall_accuracy for m in dataset.metrics.values()) / len(dataset.metrics) if dataset.metrics else 0
+        st.metric("Avg Accuracy", f"{avg_accuracy:.1%}")
+    
+    # Tool comparison
+    st.subheader("🔧 OCR Tool Comparison")
+    
+    comparison_data = []
+    for tool_name, metrics in dataset.metrics.items():
+        comparison_data.append({
+            "Tool": tool_name,
+            "Overall Accuracy": f"{metrics.overall_accuracy:.1%}",
+            "Weighted Score": f"{metrics.importance_weighted_score:.2f}",
+            "Documents": metrics.total_documents,
+            "Fields Evaluated": len(metrics.field_accuracies)
+        })
+    
+    if comparison_data:
+        st.dataframe(pd.DataFrame(comparison_data), use_container_width=True, hide_index=True)
+    
+    # Field-level accuracy
+    st.subheader("📋 Field-Level Accuracy")
+    
+    # Create field accuracy comparison
+    if dataset.metrics:
+        field_data = []
+        all_fields = set()
+        
+        # Collect all fields
+        for metrics in dataset.metrics.values():
+            all_fields.update(metrics.field_accuracies.keys())
+        
+        # Create comparison table
+        for field in sorted(all_fields):
+            field_row = {"Field": field}
+            
+            # Get importance
+            importance = FIELD_IMPORTANCE_MAPPING.get(field, FieldImportance.MEDIUM)
+            field_row["Importance"] = importance.value.title()
+            
+            # Add accuracy for each tool
+            for tool_name, metrics in dataset.metrics.items():
+                if field in metrics.field_accuracies:
+                    acc = metrics.field_accuracies[field]
+                    field_row[f"{tool_name} Accuracy"] = f"{acc.accuracy:.1%}"
+                    field_row[f"{tool_name} Exact Match"] = f"{acc.exact_match_rate:.1%}"
+                else:
+                    field_row[f"{tool_name} Accuracy"] = "N/A"
+                    field_row[f"{tool_name} Exact Match"] = "N/A"
+            
+            field_data.append(field_row)
+        
+        if field_data:
+            st.dataframe(pd.DataFrame(field_data), use_container_width=True, hide_index=True)
+    
+    # Export functionality
+    st.subheader("💾 Export Results")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📊 Export Metrics as CSV"):
+            # Create comprehensive metrics CSV
+            export_data = []
+            
+            for tool_name, metrics in dataset.metrics.items():
+                for field_name, field_acc in metrics.field_accuracies.items():
+                    export_data.append({
+                        "dataset": selected_dataset,
+                        "tool": tool_name,
+                        "field": field_name,
+                        "importance": FIELD_IMPORTANCE_MAPPING.get(field_name, FieldImportance.MEDIUM).value,
+                        "accuracy": field_acc.accuracy,
+                        "exact_match_rate": field_acc.exact_match_rate,
+                        "partial_match_rate": field_acc.partial_match_rate,
+                        "correct_predictions": field_acc.correct_predictions,
+                        "total_predictions": field_acc.total_predictions,
+                        "importance_weighted_score": field_acc.importance_weighted_score
+                    })
+            
+            if export_data:
+                df = pd.DataFrame(export_data)
+                csv = df.to_csv(index=False)
+                st.download_button(
+                    label="Download Metrics CSV",
+                    data=csv,
+                    file_name=f"evaluation_metrics_{selected_dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
+                    mime="text/csv"
+                )
+    
+    with col2:
+        if st.button("📄 Export Dataset JSON"):
+            dataset_json = dataset.model_dump_json(indent=2)
+            st.download_button(
+                label="Download Dataset JSON",
+                data=dataset_json,
+                file_name=f"evaluation_dataset_{selected_dataset}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json"
+            )
 
 
 if __name__ == "__main__":
