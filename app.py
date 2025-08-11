@@ -1303,6 +1303,79 @@ def save_evaluation_dataset(dataset: EvaluationDataset, dataset_name: str = "mai
         return False
 
 
+def delete_evaluation_dataset(dataset_name: str) -> bool:
+    """Delete an evaluation dataset file"""
+    if dataset_name in ["main", "test", "validation"]:
+        return False  # Don't allow deletion of core datasets
+    
+    dataset_file = EVALUATION_DIR / f"{dataset_name}.json"
+    try:
+        if dataset_file.exists():
+            dataset_file.unlink()
+            return True
+        return False
+    except Exception as e:
+        st.error(f"Error deleting dataset: {e}")
+        return False
+
+
+def rename_evaluation_dataset(old_name: str, new_name: str) -> bool:
+    """Rename an evaluation dataset"""
+    if old_name in ["main", "test", "validation"]:
+        return False  # Don't allow renaming of core datasets
+    
+    old_file = EVALUATION_DIR / f"{old_name}.json"
+    new_file = EVALUATION_DIR / f"{new_name}.json"
+    
+    try:
+        if old_file.exists() and not new_file.exists():
+            # Load, update name, and save to new location
+            dataset = EvaluationDataset.load_from_file(str(old_file))
+            dataset.name = new_name
+            dataset.save_to_file(str(new_file))
+            old_file.unlink()
+            return True
+        return False
+    except Exception as e:
+        st.error(f"Error renaming dataset: {e}")
+        return False
+
+
+def move_document_between_datasets(doc_id: str, source_dataset: str, target_dataset: str) -> bool:
+    """Move a document from one dataset to another"""
+    try:
+        # Load both datasets
+        source_ds = load_or_create_evaluation_dataset(source_dataset)
+        target_ds = load_or_create_evaluation_dataset(target_dataset)
+        
+        # Check if document exists in source
+        if doc_id not in source_ds.documents:
+            return False
+        
+        # Move document
+        document = source_ds.documents[doc_id]
+        target_ds.add_document(document)
+        del source_ds.documents[doc_id]
+        
+        # Save both datasets
+        save_success = (
+            save_evaluation_dataset(source_ds, source_dataset) and 
+            save_evaluation_dataset(target_ds, target_dataset)
+        )
+        
+        return save_success
+    except Exception as e:
+        st.error(f"Error moving document: {e}")
+        return False
+
+
+def get_available_datasets() -> list[str]:
+    """Get list of all available datasets"""
+    base_datasets = ["main", "test", "validation"]
+    custom_datasets = [f.stem for f in EVALUATION_DIR.glob("*.json") if f.stem not in base_datasets]
+    return base_datasets + custom_datasets
+
+
 def display_pdf_document(pdf_path: str, max_width: int = 700):
     """Display PDF document in Streamlit using pdf2image"""
     try:
@@ -1386,13 +1459,14 @@ def ground_truth_annotation_page():
         st.info("No processed invoices available for annotation. Please process some invoices first.")
         return
     
-    # Dataset selection/creation
+    # Dataset selection/creation and management
     col1, col2 = st.columns([3, 1])
     with col1:
+        available_datasets = get_available_datasets()
         dataset_name = st.selectbox(
             "Select Dataset",
-            options=["main", "test", "validation"] + [f.stem for f in EVALUATION_DIR.glob("*.json")],
-            help="Choose existing dataset or type new name below"
+            options=available_datasets,
+            help="Choose existing dataset or create new one below"
         )
         
         custom_name = st.text_input("Or create new dataset:", placeholder="my_dataset_name")
@@ -1405,6 +1479,117 @@ def ground_truth_annotation_page():
         st.metric("Documents", len(dataset.documents))
         annotated_docs = sum(1 for doc in dataset.documents.values() if doc.ground_truth)
         st.metric("Annotated", annotated_docs)
+    
+    # Dataset Management Section
+    with st.expander("🔧 Dataset Management", expanded=False):
+        st.markdown("### Manage Datasets")
+        
+        mgmt_col1, mgmt_col2 = st.columns(2)
+        
+        with mgmt_col1:
+            st.markdown("**Dataset Operations:**")
+            
+            # Rename dataset
+            st.markdown("**Rename Dataset:**")
+            rename_from = st.selectbox(
+                "Dataset to rename:",
+                options=[ds for ds in available_datasets if ds not in ["main", "test", "validation"]],
+                key="rename_from"
+            )
+            
+            new_dataset_name = st.text_input(
+                "New name:",
+                key="new_dataset_name",
+                placeholder="new_dataset_name"
+            )
+            
+            if st.button("📝 Rename Dataset", key="rename_btn"):
+                if rename_from and new_dataset_name:
+                    clean_new_name = new_dataset_name.replace(" ", "_").lower()
+                    if rename_evaluation_dataset(rename_from, clean_new_name):
+                        st.success(f"✅ Renamed '{rename_from}' to '{clean_new_name}'")
+                        st.rerun()
+                    else:
+                        st.error("❌ Failed to rename dataset")
+                else:
+                    st.error("Please select a dataset and enter a new name")
+            
+            # Delete dataset  
+            st.markdown("**Delete Dataset:**")
+            delete_dataset = st.selectbox(
+                "Dataset to delete:",
+                options=[ds for ds in available_datasets if ds not in ["main", "test", "validation"]],
+                key="delete_dataset"
+            )
+            
+            if st.button("🗑️ Delete Dataset", key="delete_btn"):
+                if delete_dataset:
+                    if st.session_state.get("confirm_delete") == delete_dataset:
+                        if delete_evaluation_dataset(delete_dataset):
+                            st.success(f"✅ Deleted dataset '{delete_dataset}'")
+                            st.session_state.pop("confirm_delete", None)
+                            st.rerun()
+                        else:
+                            st.error("❌ Failed to delete dataset")
+                    else:
+                        st.session_state["confirm_delete"] = delete_dataset
+                        st.warning(f"⚠️ Click again to confirm deletion of '{delete_dataset}'")
+                else:
+                    st.error("Please select a dataset to delete")
+        
+        with mgmt_col2:
+            st.markdown("**Document Operations:**")
+            
+            # Move document between datasets
+            st.markdown("**Move Document:**")
+            
+            # Get documents in current dataset
+            current_docs = list(dataset.documents.keys())
+            if current_docs:
+                doc_to_move = st.selectbox(
+                    "Document to move:",
+                    options=current_docs,
+                    format_func=lambda x: f"{dataset.documents[x].metadata.get('filename', x)[:30]}..."
+                )
+                
+                move_to_dataset = st.selectbox(
+                    "Move to dataset:",
+                    options=[ds for ds in available_datasets if ds != dataset_name],
+                    key="move_to_dataset"
+                )
+                
+                if st.button("📦 Move Document", key="move_btn"):
+                    if doc_to_move and move_to_dataset:
+                        if move_document_between_datasets(doc_to_move, dataset_name, move_to_dataset):
+                            st.success(f"✅ Moved document to '{move_to_dataset}'")
+                            st.rerun()
+                        else:
+                            st.error("❌ Failed to move document")
+                    else:
+                        st.error("Please select a document and target dataset")
+            else:
+                st.info("No documents in current dataset to move")
+        
+        # Show current datasets overview
+        st.markdown("---")
+        st.markdown("### 📊 All Datasets Overview")
+        
+        datasets_overview = []
+        for ds_name in available_datasets:
+            ds = load_or_create_evaluation_dataset(ds_name)
+            datasets_overview.append({
+                "Dataset": ds_name,
+                "Documents": len(ds.documents),
+                "Annotated": sum(1 for doc in ds.documents.values() if doc.ground_truth),
+                "Type": "Core" if ds_name in ["main", "test", "validation"] else "Custom"
+            })
+        
+        if datasets_overview:
+            st.dataframe(
+                pd.DataFrame(datasets_overview), 
+                use_container_width=True, 
+                hide_index=True
+            )
     
     # Document selection
     st.markdown("---")
