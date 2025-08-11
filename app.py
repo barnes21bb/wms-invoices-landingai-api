@@ -1577,26 +1577,54 @@ def ground_truth_annotation_page():
             
             # Line Items Annotation Section
             st.markdown("### 📋 Line Items Ground Truth")
-            st.markdown("Review and correct the extracted line items:")
+            st.markdown("Review, add, or delete line items:")
             
-            # Get extracted line items
-            extracted_line_items = extraction.get("line_items", [])
-            
-            if extracted_line_items:
-                # Create an editable representation of line items
-                st.markdown(f"**Found {len(extracted_line_items)} line items in extraction:**")
+            # Initialize session state for line items if not exists
+            session_key = f"line_items_{doc_id}"
+            if session_key not in st.session_state:
+                # Get extracted line items
+                extracted_line_items = extraction.get("line_items", [])
                 
-                # Initialize line items ground truth if not exists
+                # Initialize with existing ground truth or extracted items
                 existing_line_items_gt = eval_doc.ground_truth.get("line_items")
-                if existing_line_items_gt:
-                    line_items_gt = existing_line_items_gt.value
+                if existing_line_items_gt and existing_line_items_gt.value:
+                    st.session_state[session_key] = existing_line_items_gt.value.copy()
+                elif extracted_line_items:
+                    st.session_state[session_key] = extracted_line_items.copy()
                 else:
-                    # Start with extracted line items as default
-                    line_items_gt = extracted_line_items.copy()
-                
+                    st.session_state[session_key] = []
+            
+            # Get current line items from session state
+            line_items_gt = st.session_state[session_key]
+            
+            # Add new line item button
+            col1, col2 = st.columns([3, 1])
+            with col1:
+                st.markdown(f"**Current line items: {len(line_items_gt)}**")
+            with col2:
+                if st.button("➕ Add Line Item", key=f"add_line_item_{doc_id}"):
+                    # Add empty line item
+                    new_item = {
+                        "description": "",
+                        "date": "",
+                        "ticket_number": "",
+                        "quantity": 0.0,
+                        "amount": 0.0
+                    }
+                    st.session_state[session_key].append(new_item)
+                    st.rerun()
+            
+            if line_items_gt:
                 # Create editable table for line items
-                for i, item in enumerate(extracted_line_items):
+                
+                for i, item in enumerate(line_items_gt):
                     with st.expander(f"📄 Line Item {i+1}: {item.get('description', 'N/A')[:50]}...", expanded=True):
+                        # Add delete button at the top of each line item
+                        if st.button(f"🗑️ Delete Line Item {i+1}", key=f"delete_line_item_{doc_id}_{i}"):
+                            # Remove the item from session state
+                            st.session_state[session_key].pop(i)
+                            st.rerun()
+                        
                         # Create columns for line item fields
                         desc_col, date_col = st.columns(2)
                         ticket_col, qty_col, amt_col = st.columns(3)
@@ -1677,12 +1705,8 @@ def ground_truth_annotation_page():
                                 help="Line item amount in dollars"
                             )
                         
-                        # Update the ground truth line items list
-                        if i >= len(line_items_gt):
-                            line_items_gt.append({})
-                        
-                        # Store the corrected values
-                        line_items_gt[i] = {
+                        # Store the corrected values back to session state
+                        st.session_state[session_key][i] = {
                             "description": description_gt,
                             "date": date_gt,
                             "ticket_number": ticket_gt,
