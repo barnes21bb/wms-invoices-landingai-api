@@ -1575,6 +1575,144 @@ def ground_truth_annotation_page():
                 
                 st.markdown("---")  # Separator between fields
             
+            # Line Items Annotation Section
+            st.markdown("### 📋 Line Items Ground Truth")
+            st.markdown("Review and correct the extracted line items:")
+            
+            # Get extracted line items
+            extracted_line_items = extraction.get("line_items", [])
+            
+            if extracted_line_items:
+                # Create an editable representation of line items
+                st.markdown(f"**Found {len(extracted_line_items)} line items in extraction:**")
+                
+                # Initialize line items ground truth if not exists
+                existing_line_items_gt = eval_doc.ground_truth.get("line_items")
+                if existing_line_items_gt:
+                    line_items_gt = existing_line_items_gt.value
+                else:
+                    # Start with extracted line items as default
+                    line_items_gt = extracted_line_items.copy()
+                
+                # Create editable table for line items
+                for i, item in enumerate(extracted_line_items):
+                    with st.expander(f"📄 Line Item {i+1}: {item.get('description', 'N/A')[:50]}...", expanded=True):
+                        # Create columns for line item fields
+                        desc_col, date_col = st.columns(2)
+                        ticket_col, qty_col, amt_col = st.columns(3)
+                        
+                        with desc_col:
+                            # Get current ground truth value or extracted value
+                            current_desc = item.get("description", "")
+                            if i < len(line_items_gt) and isinstance(line_items_gt[i], dict):
+                                current_desc = line_items_gt[i].get("description", current_desc)
+                            
+                            description_gt = st.text_area(
+                                "Description:",
+                                value=current_desc,
+                                height=80,
+                                key=f"line_item_{i}_desc",
+                                help="Correct description of the service/product"
+                            )
+                        
+                        with date_col:
+                            current_date = item.get("date", "")
+                            if i < len(line_items_gt) and isinstance(line_items_gt[i], dict):
+                                current_date = line_items_gt[i].get("date", current_date)
+                            
+                            date_gt = st.text_input(
+                                "Service Date:",
+                                value=current_date,
+                                key=f"line_item_{i}_date",
+                                help="Date of service (YYYY-MM-DD format)"
+                            )
+                        
+                        with ticket_col:
+                            current_ticket = item.get("ticket_number", "")
+                            if i < len(line_items_gt) and isinstance(line_items_gt[i], dict):
+                                current_ticket = line_items_gt[i].get("ticket_number", current_ticket)
+                            
+                            ticket_gt = st.text_input(
+                                "Ticket #:",
+                                value=current_ticket,
+                                key=f"line_item_{i}_ticket",
+                                help="Ticket or reference number"
+                            )
+                        
+                        with qty_col:
+                            current_qty = item.get("quantity", 0)
+                            if i < len(line_items_gt) and isinstance(line_items_gt[i], dict):
+                                current_qty = line_items_gt[i].get("quantity", current_qty)
+                            
+                            try:
+                                qty_value = float(current_qty) if current_qty not in [None, "", "N/A"] else 0.0
+                            except (ValueError, TypeError):
+                                qty_value = 0.0
+                            
+                            qty_gt = st.number_input(
+                                "Quantity:",
+                                value=qty_value,
+                                step=0.01,
+                                format="%.2f",
+                                key=f"line_item_{i}_qty",
+                                help="Service quantity"
+                            )
+                        
+                        with amt_col:
+                            current_amt = item.get("amount", 0)
+                            if i < len(line_items_gt) and isinstance(line_items_gt[i], dict):
+                                current_amt = line_items_gt[i].get("amount", current_amt)
+                            
+                            try:
+                                amt_value = float(current_amt) if current_amt not in [None, "", "N/A"] else 0.0
+                            except (ValueError, TypeError):
+                                amt_value = 0.0
+                            
+                            amt_gt = st.number_input(
+                                "Amount ($):",
+                                value=amt_value,
+                                step=0.01,
+                                format="%.2f",
+                                key=f"line_item_{i}_amt",
+                                help="Line item amount in dollars"
+                            )
+                        
+                        # Update the ground truth line items list
+                        if i >= len(line_items_gt):
+                            line_items_gt.append({})
+                        
+                        # Store the corrected values
+                        line_items_gt[i] = {
+                            "description": description_gt,
+                            "date": date_gt,
+                            "ticket_number": ticket_gt,
+                            "quantity": qty_gt,
+                            "amount": amt_gt
+                        }
+                
+                # Store the corrected line items in updated_fields
+                updated_fields["line_items"] = {
+                    "value": line_items_gt,
+                    "importance": FieldImportance.HIGH,
+                    "confidence": 1.0  # Default high confidence for line items
+                }
+                
+                # Show line items summary
+                total_line_items = len(line_items_gt)
+                total_amount = sum(item.get("amount", 0) for item in line_items_gt if isinstance(item, dict))
+                
+                st.markdown("**Line Items Summary:**")
+                summ_col1, summ_col2 = st.columns(2)
+                with summ_col1:
+                    st.metric("Total Line Items", total_line_items)
+                with summ_col2:
+                    st.metric("Total Amount", f"${total_amount:.2f}")
+            
+            else:
+                st.info("No line items found in the extraction.")
+            
+            st.markdown("---")  # Separator before annotation settings
+            
             # Global annotation options inside the scrollable container
             st.markdown("### ⚙️ Annotation Settings")
             

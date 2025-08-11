@@ -215,6 +215,10 @@ class EvaluationDataset(BaseModel):
         if predicted is None or actual is None:
             return False, False, False
         
+        # Special handling for line items (list of dictionaries)
+        if isinstance(predicted, list) and isinstance(actual, list):
+            return self._compare_line_items(predicted, actual)
+        
         # Convert to strings for comparison
         pred_str = str(predicted).strip().lower()
         actual_str = str(actual).strip().lower()
@@ -247,6 +251,100 @@ class EvaluationDataset(BaseModel):
         
         return False, False, False
     
+    def _compare_simple_values(self, predicted, actual) -> tuple[bool, bool, bool]:
+        """Simple comparison for non-list values (used in line item comparison to avoid recursion)"""
+        if predicted is None and actual is None:
+            return True, True, False
+        
+        if predicted is None or actual is None:
+            return False, False, False
+        
+        # Convert to strings for comparison
+        pred_str = str(predicted).strip().lower()
+        actual_str = str(actual).strip().lower()
+        
+        # Exact match
+        if pred_str == actual_str:
+            return True, True, False
+        
+        # For numeric values, check if they're close
+        try:
+            pred_num = float(predicted)
+            actual_num = float(actual)
+            if abs(pred_num - actual_num) < 0.01:  # Within 1 cent for currency
+                return True, True, False
+            elif abs(pred_num - actual_num) / max(actual_num, 0.01) < 0.05:  # Within 5%
+                return True, False, True
+        except (ValueError, TypeError):
+            pass
+        
+        # For strings, check partial matches
+        if len(pred_str) > 3 and len(actual_str) > 3:
+            if pred_str in actual_str or actual_str in pred_str:
+                return True, False, True
+            
+            # Check for similar strings (simple approach)
+            common_chars = len(set(pred_str) & set(actual_str))
+            total_chars = len(set(pred_str) | set(actual_str))
+            if total_chars > 0 and common_chars / total_chars > 0.7:
+                return True, False, True
+        
+        return False, False, False
+    
+    def _compare_line_items(self, predicted_items, actual_items) -> tuple[bool, bool, bool]:
+        """Compare two lists of line items"""
+        if len(predicted_items) != len(actual_items):
+            # Different number of line items - partial match if some overlap exists
+            if len(predicted_items) == 0 and len(actual_items) == 0:
+                return True, True, False
+            elif len(predicted_items) == 0 or len(actual_items) == 0:
+                return False, False, False
+            else:
+                return True, False, True  # Some items might match
+        
+        # Same number of items - compare each one
+        exact_matches = 0
+        partial_matches = 0
+        
+        for i in range(len(predicted_items)):
+            pred_item = predicted_items[i] if i < len(predicted_items) else {}
+            actual_item = actual_items[i] if i < len(actual_items) else {}
+            
+            item_exact = True
+            item_partial = False
+            
+            # Compare key fields in line items
+            key_fields = ['description', 'date', 'ticket_number', 'quantity', 'amount']
+            
+            for field in key_fields:
+                pred_val = pred_item.get(field)
+                actual_val = actual_item.get(field)
+                
+                # Use simple comparison for line item fields to avoid recursion
+                is_correct, is_exact, is_partial = self._compare_simple_values(pred_val, actual_val)
+                
+                if not is_correct:
+                    item_exact = False
+                elif not is_exact:
+                    item_exact = False
+                    item_partial = True
+            
+            if item_exact:
+                exact_matches += 1
+            elif item_partial:
+                partial_matches += 1
+        
+        # Determine overall result
+        total_items = len(actual_items)
+        if exact_matches == total_items:
+            return True, True, False  # All items exact match
+        elif exact_matches + partial_matches >= total_items * 0.8:  # 80% threshold
+            return True, False, True  # Mostly correct with some partial matches
+        elif exact_matches + partial_matches > 0:
+            return True, False, True  # Some matches
+        else:
+            return False, False, False  # No matches
+    
     def save_to_file(self, file_path: str):
         """Save dataset to JSON file"""
         with open(file_path, 'w', encoding='utf-8') as f:
@@ -268,7 +366,7 @@ FIELD_IMPORTANCE_MAPPING = {
     "customer_name": FieldImportance.HIGH,
     "invoice_date": FieldImportance.HIGH,
     "service_period": FieldImportance.MEDIUM,
-    "line_items": FieldImportance.MEDIUM,
+    "line_items": FieldImportance.HIGH,  # Line items are crucial for invoice accuracy
     "vendor_name": FieldImportance.MEDIUM,
     "vendor_address": FieldImportance.LOW,
     "vendor_phone": FieldImportance.LOW,
