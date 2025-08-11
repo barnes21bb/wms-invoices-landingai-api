@@ -17,6 +17,9 @@ from evaluation_models import (
 import PyPDF2
 from PIL import Image
 import uuid
+from pdf2image import convert_from_path
+import base64
+from io import BytesIO
 
 # Load environment variables
 load_dotenv()
@@ -1300,6 +1303,75 @@ def save_evaluation_dataset(dataset: EvaluationDataset, dataset_name: str = "mai
         return False
 
 
+def display_pdf_document(pdf_path: str, max_width: int = 700):
+    """Display PDF document in Streamlit using pdf2image"""
+    try:
+        # Check if file exists
+        if not os.path.exists(pdf_path):
+            st.error(f"PDF file not found: {pdf_path}")
+            return False
+        
+        # Convert PDF to images
+        with st.spinner("Loading PDF document..."):
+            try:
+                images = convert_from_path(pdf_path, dpi=150, first_page=1, last_page=3)  # Limit to first 3 pages
+            except Exception as e:
+                st.error(f"Error converting PDF: {str(e)}")
+                st.info("Note: pdf2image requires poppler-utils. Install with: brew install poppler (Mac) or apt-get install poppler-utils (Linux)")
+                return False
+        
+        if not images:
+            st.error("No pages found in PDF")
+            return False
+        
+        # Display each page
+        for i, image in enumerate(images):
+            st.subheader(f"Page {i + 1}")
+            
+            # Resize image to fit display width
+            img_width, img_height = image.size
+            if img_width > max_width:
+                ratio = max_width / img_width
+                new_width = max_width
+                new_height = int(img_height * ratio)
+                image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Display image
+            st.image(image, use_column_width=False, width=max_width)
+            
+            if i < len(images) - 1:  # Add separator between pages
+                st.markdown("---")
+        
+        return True
+        
+    except Exception as e:
+        st.error(f"Error displaying PDF: {str(e)}")
+        return False
+
+
+def get_pdf_path_for_document(filename: str) -> str:
+    """Get the PDF path for a processed document"""
+    # First check uploaded files directory
+    pdf_path = UPLOADED_DIR / filename
+    if pdf_path.exists():
+        return str(pdf_path)
+    
+    # Check if it's in the wms-invoice-pdfs directory
+    pdf_path = Path("wms-invoice-pdfs") / filename
+    if pdf_path.exists():
+        return str(pdf_path)
+    
+    # Try without extension change
+    base_name = Path(filename).stem
+    for ext in ['.pdf', '.PDF']:
+        for directory in [UPLOADED_DIR, Path("wms-invoice-pdfs")]:
+            pdf_path = directory / f"{base_name}{ext}"
+            if pdf_path.exists():
+                return str(pdf_path)
+    
+    return ""
+
+
 def ground_truth_annotation_page():
     """Page for annotating ground truth values for evaluation"""
     st.header("📝 Ground Truth Annotation")
@@ -1371,12 +1443,15 @@ def ground_truth_annotation_page():
     result = selected_info["result"]
     doc_id = selected_info["doc_id"]
     
-    # Display document info
+    # Display document info and setup two-column layout
     st.markdown("---")
     st.subheader(f"Annotating: {result['metadata'].get('filename', 'Unknown')}")
     
     extraction = result["data"]["extraction"]
     metadata = result["metadata"]
+    
+    # Create two-column layout: PDF viewer on left, annotation form on right
+    pdf_col, annotation_col = st.columns([1, 1], gap="medium")
     
     # Load or create evaluation document
     if doc_id in dataset.documents:
@@ -1398,54 +1473,71 @@ def ground_truth_annotation_page():
             raw_output=result["data"]
         )
     
-    # Annotation interface
-    st.markdown("### Field Annotation")
-    st.markdown("Review the extracted values and mark them as correct or provide the ground truth:")
-    
-    # Key fields to annotate with importance
-    key_fields = [
-        ("invoice_number", "Invoice Number", FieldImportance.CRITICAL),
-        ("current_invoice_charges", "Total Amount", FieldImportance.CRITICAL),
-        ("customer_id", "Customer ID", FieldImportance.HIGH),
-        ("customer_name", "Customer Name", FieldImportance.HIGH),
-        ("invoice_date", "Invoice Date", FieldImportance.HIGH),
-        ("gl_account_code", "GL Account Code", FieldImportance.HIGH),
-        ("tax_code", "Tax Code", FieldImportance.HIGH),
-        ("service_period", "Service Period", FieldImportance.MEDIUM),
-        ("vendor_name", "Vendor Name", FieldImportance.MEDIUM),
-        ("service_location_address", "Service Address", FieldImportance.MEDIUM),
-    ]
-    
-    updated_fields = {}
-    
-    for field_name, display_name, importance in key_fields:
-        with st.container():
-            col1, col2, col3, col4 = st.columns([2, 3, 2, 1])
+    # Display PDF in left column
+    with pdf_col:
+        st.markdown("### 📄 Original Document")
+        
+        # Get PDF path
+        pdf_path = get_pdf_path_for_document(metadata.get("filename", ""))
+        
+        if pdf_path:
+            # Display PDF
+            pdf_displayed = display_pdf_document(pdf_path, max_width=600)
             
-            # Display field info
-            with col1:
-                importance_color = {
-                    FieldImportance.CRITICAL: "🔴",
-                    FieldImportance.HIGH: "🟡", 
-                    FieldImportance.MEDIUM: "🟢",
-                    FieldImportance.LOW: "⚪"
-                }
-                st.write(f"{importance_color[importance]} **{display_name}**")
-                st.caption(f"Importance: {importance.value}")
+            if not pdf_displayed:
+                st.warning(f"Could not display PDF: {metadata.get('filename', 'Unknown')}")
+                st.info("The PDF viewer requires poppler-utils. Install with:")
+                st.code("brew install poppler  # macOS\nsudo apt-get install poppler-utils  # Ubuntu/Debian")
+        else:
+            st.error(f"PDF file not found: {metadata.get('filename', 'Unknown')}")
+            st.info("The original PDF file is needed for accurate annotation. Please ensure the PDF is available in the uploaded_files or wms-invoice-pdfs directory.")
+    
+    # Annotation interface in right column
+    with annotation_col:
+        st.markdown("### 📝 Field Annotation")
+        st.markdown("Review the extracted values and mark them as correct or provide the ground truth:")
+        
+        # Key fields to annotate with importance
+        key_fields = [
+            ("invoice_number", "Invoice Number", FieldImportance.CRITICAL),
+            ("current_invoice_charges", "Total Amount", FieldImportance.CRITICAL),
+            ("customer_id", "Customer ID", FieldImportance.HIGH),
+            ("customer_name", "Customer Name", FieldImportance.HIGH),
+            ("invoice_date", "Invoice Date", FieldImportance.HIGH),
+            ("gl_account_code", "GL Account Code", FieldImportance.HIGH),
+            ("tax_code", "Tax Code", FieldImportance.HIGH),
+            ("service_period", "Service Period", FieldImportance.MEDIUM),
+            ("vendor_name", "Vendor Name", FieldImportance.MEDIUM),
+            ("service_location_address", "Service Address", FieldImportance.MEDIUM),
+        ]
+        
+        updated_fields = {}
+        
+        for field_name, display_name, importance in key_fields:
+            # Use a more compact layout for the annotation form
+            importance_color = {
+                FieldImportance.CRITICAL: "🔴",
+                FieldImportance.HIGH: "🟡", 
+                FieldImportance.MEDIUM: "🟢",
+                FieldImportance.LOW: "⚪"
+            }
             
-            # Show extracted value
-            with col2:
+            st.markdown(f"**{importance_color[importance]} {display_name}** ({importance.value})")
+            
+            # Show extracted value and ground truth side by side
+            ext_col, gt_col = st.columns(2)
+            
+            with ext_col:
                 extracted_value = extraction.get(field_name, "N/A")
                 st.text_area(
-                    "Extracted Value:",
+                    "Extracted:",
                     value=str(extracted_value),
                     height=60,
                     disabled=True,
                     key=f"extracted_{field_name}"
                 )
             
-            # Ground truth input
-            with col3:
+            with gt_col:
                 # Check if we have existing ground truth
                 existing_gt = eval_doc.ground_truth.get(field_name)
                 default_value = str(existing_gt.value) if existing_gt else str(extracted_value) if extracted_value != "N/A" else ""
@@ -1464,25 +1556,24 @@ def ground_truth_annotation_page():
                         "importance": importance
                     }
             
-            # Confidence and notes
-            with col4:
-                confidence = st.slider(
-                    "Confidence:",
-                    min_value=0.0,
-                    max_value=1.0,
-                    value=existing_gt.confidence if existing_gt else 1.0,
-                    step=0.1,
-                    key=f"conf_{field_name}"
-                )
-                
-                if field_name in updated_fields:
-                    updated_fields[field_name]["confidence"] = confidence
-    
-    # Global annotation options
-    st.markdown("---")
-    col1, col2 = st.columns(2)
-    
-    with col1:
+            # Confidence slider
+            confidence = st.slider(
+                f"Confidence for {display_name}:",
+                min_value=0.0,
+                max_value=1.0,
+                value=existing_gt.confidence if existing_gt else 1.0,
+                step=0.1,
+                key=f"conf_{field_name}"
+            )
+            
+            if field_name in updated_fields:
+                updated_fields[field_name]["confidence"] = confidence
+            
+            st.markdown("---")  # Separator between fields
+        
+        # Global annotation options
+        st.markdown("### ⚙️ Annotation Settings")
+        
         annotator_name = st.text_input(
             "Annotator Name:",
             value=st.session_state.get("annotator_name", ""),
@@ -1490,40 +1581,39 @@ def ground_truth_annotation_page():
         )
         if annotator_name:
             st.session_state["annotator_name"] = annotator_name
-    
-    with col2:
+        
         notes = st.text_area(
             "General Notes:",
             help="Any notes about this document or annotation",
-            height=100
+            height=80
         )
-    
-    # Save annotations
-    if st.button("💾 Save Annotations", type="primary"):
-        if not annotator_name:
-            st.error("Please enter your name as annotator")
-            return
         
-        # Update ground truth values
-        for field_name, field_data in updated_fields.items():
-            eval_doc.add_ground_truth(
-                field_name=field_name,
-                value=field_data["value"],
-                importance=field_data["importance"],
-                confidence=field_data.get("confidence", 1.0),
-                notes=notes,
-                annotated_by=annotator_name
-            )
-        
-        # Add document to dataset
-        dataset.add_document(eval_doc)
-        
-        # Save dataset
-        if save_evaluation_dataset(dataset, dataset_name):
-            st.success(f"✅ Annotations saved to dataset '{dataset_name}'!")
-            st.rerun()
-        else:
-            st.error("Failed to save annotations")
+        # Save annotations
+        if st.button("💾 Save Annotations", type="primary", use_container_width=True):
+            if not annotator_name:
+                st.error("Please enter your name as annotator")
+                return
+            
+            # Update ground truth values
+            for field_name, field_data in updated_fields.items():
+                eval_doc.add_ground_truth(
+                    field_name=field_name,
+                    value=field_data["value"],
+                    importance=field_data["importance"],
+                    confidence=field_data.get("confidence", 1.0),
+                    notes=notes,
+                    annotated_by=annotator_name
+                )
+            
+            # Add document to dataset
+            dataset.add_document(eval_doc)
+            
+            # Save dataset
+            if save_evaluation_dataset(dataset, dataset_name):
+                st.success(f"✅ Annotations saved to dataset '{dataset_name}'!")
+                st.rerun()
+            else:
+                st.error("Failed to save annotations")
     
     # Show current annotations
     if eval_doc.ground_truth:
