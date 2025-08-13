@@ -27,6 +27,8 @@ load_dotenv()
 # Results directories
 RESULTS_DIR = Path("results")
 PROCESSED_DIR = RESULTS_DIR / "processed_invoices"
+LANDINGAI_PARSE_DIR = PROCESSED_DIR / "landingai-parse"
+LANDINGAI_EXTRACT_DIR = PROCESSED_DIR / "landingai-extract"
 UPLOADED_DIR = RESULTS_DIR / "uploaded_files"
 
 # Evaluation dataset directory
@@ -34,6 +36,8 @@ EVALUATION_DIR = RESULTS_DIR / "evaluation_datasets"
 
 # Ensure directories exist
 PROCESSED_DIR.mkdir(parents=True, exist_ok=True)
+LANDINGAI_PARSE_DIR.mkdir(parents=True, exist_ok=True)
+LANDINGAI_EXTRACT_DIR.mkdir(parents=True, exist_ok=True)
 UPLOADED_DIR.mkdir(parents=True, exist_ok=True)
 EVALUATION_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -105,8 +109,8 @@ def save_processing_result(filename, file_hash, result, extraction_data=None):
                 }
                 chunks_data.append(chunk_dict)
 
-    # Save main result
-    result_file = PROCESSED_DIR / f"{base_name}_{timestamp}_result.json"
+    # Save main result (parse function output)
+    result_file = LANDINGAI_PARSE_DIR / f"{base_name}_{timestamp}_result.json"
     with open(result_file, "w") as f:
         json.dump(
             {
@@ -119,9 +123,9 @@ def save_processing_result(filename, file_hash, result, extraction_data=None):
             indent=2,
         )
 
-    # Save structured extraction if available
+    # Save structured extraction if available (extract function output)
     if extraction_data:
-        extraction_file = PROCESSED_DIR / f"{base_name}_{timestamp}_extraction.json"
+        extraction_file = LANDINGAI_EXTRACT_DIR / f"{base_name}_{timestamp}_extraction.json"
         with open(extraction_file, "w") as f:
             json.dump(extraction_data, f, indent=2)
 
@@ -133,7 +137,7 @@ def check_duplicate_file(file_content):
     file_hash = get_file_hash(file_content)
 
     # Check existing results for this hash
-    for result_file in PROCESSED_DIR.glob("*_result.json"):
+    for result_file in LANDINGAI_PARSE_DIR.glob("*_result.json"):
         try:
             with open(result_file, "r") as f:
                 data = json.load(f)
@@ -149,7 +153,7 @@ def load_all_results():
     """Load all processing results for browsing"""
     results = []
 
-    for result_file in sorted(PROCESSED_DIR.glob("*_result.json"), reverse=True):
+    for result_file in sorted(LANDINGAI_PARSE_DIR.glob("*_result.json"), reverse=True):
         try:
             with open(result_file, "r") as f:
                 data = json.load(f)
@@ -159,7 +163,7 @@ def load_all_results():
                 extraction_file_name = result_file.name.replace(
                     "_result.json", "_extraction.json"
                 )
-                extraction_file = PROCESSED_DIR / extraction_file_name
+                extraction_file = LANDINGAI_EXTRACT_DIR / extraction_file_name
                 extraction_data = None
 
                 if extraction_file.exists():
