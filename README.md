@@ -1,167 +1,91 @@
-# Waste Management Invoice Processing with LandingAI
+## Introduction
 
-Automated invoice processing system using LandingAI's Agentic Document Extraction API to extract structured data from Waste Management invoices and related correspondence.
+This is an example template for a Snowflake Native App project which demonstrates the use of Python extension code and adding Streamlit code. This template is meant to guide developers towards a possible project structure on the basis of functionality, as well as to indicate the contents of some common and useful files.
 
-## Features
+Since this template contains Python files only, you do not need to perform any additional steps to build the source code. You can directly go to the next section. However, if there were any source code that needed to be built, you must manually perform the build steps here before proceeding to the next section.
 
-- 🔍 **Intelligent Document Parsing**: Extract structured data from PDF invoices and emails
-- 🌐 **Web Interface**: Streamlit app for easy file upload and result review
-- ⚡ **Batch Processing**: Process multiple documents efficiently
-- 🛡️ **Type Safety**: Pydantic models for data validation
-- 📊 **Financial Analytics**: Automatic calculation of totals and summaries
-- 💾 **Export Options**: Save results as JSON or Markdown
+Similarly, you can also use your own build steps for any other languages supported by Snowflake that you wish to write your code in. For more information on supported languages, visit [docs](https://docs.snowflake.com/en/developer-guide/stored-procedures-vs-udfs#label-sp-udf-languages).
 
-## Quick Start
-
-### 1. Setup Environment
-
-```bash
-# Create virtual environment
-python3.9 -m venv venv
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
+## Run the app
+Create or update an application package in your Snowflake account, upload application artifacts to a stage in the application package, and create or update an application object in the same account based on the uploaded artifacts.
+```
+snow app run
 ```
 
-### 2. Configure API Key
+For more information, please refer to the Snowflake Documentation on installing and using Snowflake CLI to create a Snowflake Native App.
+# Directory Structure
+## `/app`
+This directory holds your Snowflake Native App files.
 
-Get your API key from [LandingAI Settings](https://va.landing.ai/settings/api-key) and add to `.env`:
+### `/app/README.md`
+Exposed to the account installing the application with details on what it does and how to use it.
 
-```bash
-VISION_AGENT_API_KEY=your-api-key-here
+### `/app/manifest.yml`
+Defines properties required by the application package. Find more details at the [Manifest Documentation.](https://docs.snowflake.com/en/developer-guide/native-apps/creating-manifest)
+
+### `/app/setup_script.sql`
+Contains SQL statements that are run when a consumer installs or upgrades a Snowflake Native App in their account.
+
+## `/scripts`
+You can add any additional scripts such as `.sql` and `.jinja` files here. One common use case for such a script is to add shared content from external databases to your application package. This allows you to refer to the external database in the setup script that runs when a Snowflake Native App is installed.
+_Note: See the note at the end of `snowflake.yml` if you decide to use the scripts. _
+
+
+## `/src`
+This directory contains code organization by functionality, such as one distinct module for Streamlit related code, and another module for "number add" functionality, which is used an example in this template.
+```
+/src
+   |-module-add
+   |          |-main
+   |          |    |-python
+   |          |           |-add.py
+   |          |
+   |          |-test
+   |               |-python
+   |                      |-add_test.py
+   |
+   |-module-ui
+   |         |-src
+   |             |-ui.py
+   |             |-environment.yml
+   |         |-test
+   |              |-test_ui.py
 ```
 
-### 3. Run Applications
+## `snowflake.yml`
+Snowflake CLI uses the `snowflake.yml` file  to discover your project's code and interact with Snowflake using all relevant privileges and grants.
 
-**Streamlit Web App:**
-```bash
-streamlit run app.py
-```
+For more information, please refer to the Snowflake Documentation on installing and using Snowflake CLI to create a Snowflake Native App.
 
-**Batch Processing:**
-```bash
-python batch_processor.py
-```
 
-**Test Setup:**
-```bash
-python main.py
-```
+## Unit tests
+To set up and run unit tests, please follow the steps below.
 
-## Project Structure
+### Set up testing conda environment (First Time setup)
+
+Go to the project's root directory where you can find `local_test_env.yml` and run the following command once to set up a conda environment with the correct packages. Please note that the version of test packages may differ from the version of packages in Snowflake, so you will need to be careful with any differences in behavior.
 
 ```
-├── app.py                    # Streamlit web application
-├── batch_processor.py        # Batch processing with Pydantic schemas
-├── main.py                   # Basic setup and API test
-├── extract-schema-library.py # Library approach example
-├── extract-schema-api.py     # Direct API approach example
-├── extract-results.json      # Sample extraction output
-├── requirements.txt          # Python dependencies
-└── README.md                # This file
+conda env create --file local_test_env.yml
 ```
 
-## Extracted Data Fields
+This will create a conda environment with the name `streamlit-python-testing`.
 
-The system extracts the following fields from Waste Management invoices:
+### Run unit tests
+To run unit tests, follow these steps:
 
-### Invoice Information
-- Customer ID and Name
-- Invoice Number and Date
-- Service Period
-- Current Invoice Charges
-
-### Vendor Details
-- Vendor Name, Address, Phone
-- Remit To Address
-- Service Location Address
-
-### Line Items
-- Description, Date, Ticket Number
-- Quantity and Amount
-
-### Email Correspondence
-- From/To Email Addresses
-- Email Date and Subject
-- Email Body Content
-
-### Accounting Codes
-- GL Account Code
-- Tax Code
-
-## Usage Examples
-
-### Single File Processing
-```python
-from batch_processor import BatchProcessor
-
-processor = BatchProcessor()
-result = processor.process_single_file("invoice.pdf")
-print(result["extraction"])
+#### Activate conda environment
+You will need to activate this conda environment once per command line session:
 ```
-
-### Batch Processing
-```python
-processor = BatchProcessor()
-file_paths = ["invoice1.pdf", "invoice2.pdf"]
-results = processor.process_multiple_files(file_paths)
-processor.save_results(results, "batch_results.json")
+conda activate streamlit-python-testing
 ```
-
-### Streamlit Web Interface
-```bash
-# Launch web app
-streamlit run app.py
-
-# Navigate to http://localhost:8501
-# Upload files and view extracted results
+To deactivate and use your current command line session for other tasks, run the following:
 ```
-
-## Configuration
-
-The system uses `ParseConfig` for centralized settings:
-
-```python
-config = ParseConfig(
-    api_key="your-api-key",
-    extraction_model=WasteManagementInvoiceSchema,
-    include_marginalia=False,
-    split_size=10,
-    extraction_split_size=50
-)
+conda deactivate
 ```
-
-## Output Format
-
-Results include both clean extracted data and metadata with chunk references:
-
-```json
-{
-  "extraction": {
-    "customer_name": "SIMMONS PREPARED FOODS",
-    "invoice_number": "5260154-0592-5",
-    "current_invoice_charges": 5346.96,
-    "line_items": [...]
-  },
-  "metadata": {
-    "customer_name": {
-      "value": "SIMMONS PREPARED FOODS",
-      "chunk_references": ["uuid1", "uuid2"]
-    }
-  }
-}
+#### Run Pytest
+To run the example tests provided, execute the following command from the project's root:
 ```
-
-## API Documentation
-
-- [LandingAI Quickstart](https://docs.landing.ai/ade/ade-quickstart)
-- [Parse Configuration](https://docs.landing.ai/ade/ade-parseconfig)
-- [Batch Processing](https://docs.landing.ai/ade/ade-parse-docs)
-- [Troubleshooting](https://docs.landing.ai/ade/ade-extract-troubleshoot)
-
-## Requirements
-
-- Python 3.9+
-- LandingAI API Key
-- Virtual environment recommended
+pytest
+```
+Note that there is a pytest.ini file specifying the location of the source code that we are testing.

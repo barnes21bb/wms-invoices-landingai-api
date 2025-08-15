@@ -3,7 +3,9 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Project Overview
-Automated invoice processing system using LandingAI's Agentic Document Extraction API to extract structured data from Waste Management invoices and email correspondence.
+Automated invoice processing system using LandingAI's Agentic Document Extraction API to extract structured data from Waste Management invoices and email correspondence. Includes comprehensive OCR evaluation tools for measuring accuracy and building ground truth datasets.
+
+**Repository**: https://github.com/simmonsfoods/wm-invoices-landingai-api
 
 ## Essential Commands
 
@@ -28,6 +30,18 @@ python batch_processor.py
 
 # Validate setup
 python main.py
+```
+
+### Git Commands
+```bash
+# Clone repository
+git clone https://github.com/simmonsfoods/wm-invoices-landingai-api.git
+
+# Push changes (requires authentication setup)
+git push simfoods main
+
+# Pull latest changes
+git pull simfoods main
 ```
 
 ### Testing and Quality
@@ -67,7 +81,12 @@ The system follows a three-layer architecture:
 - `batch_processor.py:BatchProcessor` - Main processing engine with type-safe Pydantic schemas
 - `batch_processor.py:WasteManagementInvoiceSchema` - Primary data model for invoice extraction
 - `batch_processor.py:LineItem` - Nested model for invoice line items
-- `app.py` - Streamlit web interface for interactive processing
+- `app.py` - Streamlit web interface with 4 main pages:
+  - Process New Invoice: Upload and process documents
+  - Invoice Summary: Browse processed invoices with filtering
+  - Ground Truth Annotation: Create evaluation datasets with PDF viewer
+  - Evaluation Dashboard: Compare OCR tool accuracy
+- `evaluation_models.py` - Pydantic models for OCR evaluation and ground truth datasets
 
 ### Schema Design Philosophy
 All Pydantic models use descriptive Field titles and descriptions to guide LandingAI's extraction. The `WasteManagementInvoiceSchema` captures:
@@ -93,8 +112,53 @@ All Pydantic models use descriptive Field titles and descriptions to guide Landi
 - CI pipeline includes security scanning with bandit and safety
 - Coverage reporting with pytest-cov
 
+## File Organization
+
+### Results Directory Structure
+```
+results/
+├── processed_invoices/
+│   ├── landingai-parse/     # Parse function results ($0.03/page)
+│   │   ├── *_result.json    # Raw document analysis (50-90KB)
+│   │   └── README.md        # Documentation and cost info
+│   └── landingai-extract/   # Extract function results ($0.03/page)
+│       ├── *_extraction.json # Structured data (1-4KB)
+│       └── README.md        # Documentation and cost info
+├── uploaded_files/          # Original PDF files
+├── evaluation_datasets/     # OCR evaluation datasets
+│   ├── main.json           # Primary evaluation dataset
+│   ├── test.json           # Testing dataset
+│   └── validation.json     # Validation dataset
+```
+
+### Cost Structure
+- **LandingAI Parse**: $0.03 per page (document analysis and markdown)
+- **LandingAI Extract**: $0.03 per page (structured data extraction)
+- **Total per invoice**: $0.06 per page for complete processing pipeline
+
+## Deployment and Collaboration
+
+### GitHub Authentication Setup
+For team members working with this repository:
+
+1. **Personal Access Token** (Recommended):
+   - Create token at https://github.com/settings/tokens
+   - Required scopes: `repo`, `workflow`
+   - Authorize for SSO with simmonsfoods organization
+   - Configure git credential storage: `git config --global credential.helper store`
+
+2. **SSH Key Alternative**:
+   - Add SSH key to GitHub account (not repository-specific)
+   - Authorize for SSO with simmonsfoods organization
+
+### Team Workflow
+- **Main Branch**: Production-ready code
+- **Feature Branches**: Use for development
+- **Pull Requests**: Required for code review
+- **CI/CD**: GitHub Actions workflows for testing and quality checks
+
 ## Important Implementation Notes
 - Always use the library approach (`agentic-doc`) over direct API calls for better error handling
 - Results include both extracted data and metadata with chunk references for verification
 - The system handles rate limiting and large file processing automatically
-- Sample invoices in `wms-invoice-pdfs/` directory for testing
+- PDF files are excluded from git repository for security (see .gitignore)
